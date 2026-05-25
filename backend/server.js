@@ -68,9 +68,20 @@ const allowedMimeTypes = Object.keys(extensionByMimeType);
 
 const getDownloadUrl = (type) => `${baseUrl}/api/download/${type}`;
 
+const getSupabasePublicUrl = (type) => {
+  const fileConfig = fileMappings[type];
+
+  if (!fileConfig) {
+    return null;
+  }
+
+  const encodedPath = encodeURIComponent(fileConfig.objectPath).replace(/%2F/g, "/");
+  return `${process.env.SUPABASE_URL}/storage/v1/object/public/${supabaseBucket}/${encodedPath}`;
+};
+
 const getFileUrls = () =>
   Object.keys(fileMappings).reduce((accumulator, type) => {
-    accumulator[type] = getDownloadUrl(type);
+    accumulator[type] = getSupabasePublicUrl(type);
     return accumulator;
   }, {});
 
@@ -113,7 +124,7 @@ const ensureBucketReady = async () => {
     const { error: createBucketError } = await supabase.storage.createBucket(
       supabaseBucket,
       {
-        public: false,
+        public: true,
         fileSizeLimit: 20 * 1024 * 1024,
         allowedMimeTypes
       }
@@ -127,7 +138,7 @@ const ensureBucketReady = async () => {
   const { error: updateBucketError } = await supabase.storage.updateBucket(
     supabaseBucket,
     {
-      public: false,
+      public: true,
       fileSizeLimit: 20 * 1024 * 1024,
       allowedMimeTypes
     }
@@ -235,7 +246,7 @@ app.post("/api/upload/:type", upload.single("file"), async (request, response) =
 
     response.json({
       message: "File updated successfully",
-      url: getDownloadUrl(type)
+      url: getSupabasePublicUrl(type)
     });
   } catch (error) {
     console.error("Upload error:", error);
